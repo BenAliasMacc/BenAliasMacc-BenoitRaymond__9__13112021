@@ -1,10 +1,12 @@
-import { screen } from "@testing-library/dom"
-import BillsUI from "../views/BillsUI.js"
-import { bills } from "../fixtures/bills.js"
-import { localStorageMock } from "../__mocks__/localStorage.js"
-import { ROUTES_PATH } from "../constants/routes";
+import { screen, fireEvent } from "@testing-library/dom";
+import BillsUI from "../views/BillsUI.js";
+import { bills } from "../fixtures/bills.js";
+import { localStorageMock } from "../__mocks__/localStorage.js";
+import { ROUTES, ROUTES_PATH } from "../constants/routes";
 import Router from "../app/Router";
-import Firestore from "../app/Firestore"
+import Firestore from "../app/Firestore";
+import Bills from "../containers/Bills.js";
+import firebase from "../__mocks__/firebase";
 
 describe("Given I am connected as an employee", () => {
   describe("When I am on Bills Page", () => {
@@ -44,3 +46,117 @@ describe("Given I am connected as an employee", () => {
   })
 })
 
+//--------------------------------------
+
+
+describe("Given I am connected as Employee and I am on Bills page", () => {
+  describe("When I click on the New Bill button", () => {
+    test("Then, it should render NewBill page", () => {
+
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname });
+      };
+      Object.defineProperty(window, "localStorage", {
+        value: localStorageMock,
+      });
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({
+          type: "Employee",
+        })
+      );
+      const firestore = null;
+      const html = BillsUI({ data: [] });
+      document.body.innerHTML = html;
+
+      const bills = new Bills({
+        document,
+        onNavigate,
+        firestore,
+        localStorage: window.localStorage,
+      });
+       const handleClickNewBill = jest.fn(bills.handleClickNewBill);
+       const billBtn = screen.getByTestId("btn-new-bill");
+      billBtn.addEventListener("click", handleClickNewBill);
+      fireEvent.click(billBtn);
+      expect(screen.getAllByText("Envoyer une note de frais")).toBeTruthy();
+    });
+  });
+});
+
+
+//-------------------------------------------
+
+
+describe("Given I am connected as Employee and I am on Bills page", () => {
+  describe("When I click on the icon eye", () => {
+    test("A modal should open", () => {
+      Object.defineProperty(window, "localStorage", {
+        value: localStorageMock,
+      });
+      window.localStorage.setItem(
+        "user",
+        JSON.stringify({
+          type: "Employee",
+        })
+      );
+      const html = BillsUI({ data: bills });
+      document.body.innerHTML = html;
+      const onNavigate = (pathname) => {
+        document.body.innerHTML = ROUTES({ pathname });
+      };
+      const firestore = null;
+      const mybills = new Bills({
+        document,
+        onNavigate,
+        firestore,
+        localStorage: window.localStorage,
+      });
+
+     $.fn.modal = jest.fn();
+      const eye = screen.getAllByTestId("icon-eye")[0];
+      const handleClickIconEyeMock = jest.fn(() =>
+        mybills.handleClickIconEye(eye)
+      );
+      eye.addEventListener("click", handleClickIconEyeMock);
+      fireEvent.click(eye);
+      expect(handleClickIconEyeMock).toHaveBeenCalled();
+      const modale = document.getElementById("modaleFile");
+      expect(modale).toBeTruthy();
+    });
+  });
+});
+
+
+//----------------------------------
+
+
+// test d'intégration GET
+describe("Given I am a user connected as Employee", () => {
+  describe("When I navigate to Bills UI", () => {
+    test("fetches bills from mock API GET", async () => {
+      const getSpy = jest.spyOn(firebase, "get");
+      const bills = await firebase.get();
+      expect(getSpy).toHaveBeenCalledTimes(1);
+      expect(bills.data.length).toBe(4);
+    });
+    test("fetches bills from an API and fails with 404 message error", async () => {
+      firebase.get.mockImplementationOnce(() =>
+        Promise.reject(new Error("Erreur 404"))
+      );
+      const html = BillsUI({ error: "Erreur 404" });
+      document.body.innerHTML = html;
+      const message = await screen.getByText(/Erreur 404/);
+      expect(message).toBeTruthy();
+    });
+    test("fetches messages from an API and fails with 500 message error", async () => {
+      firebase.get.mockImplementationOnce(() =>
+        Promise.reject(new Error("Erreur 500"))
+      );
+      const html = BillsUI({ error: "Erreur 500" });
+      document.body.innerHTML = html;
+      const message = await screen.getByText(/Erreur 500/);
+      expect(message).toBeTruthy();
+    });
+  });
+});
