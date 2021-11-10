@@ -19,18 +19,31 @@ export default class NewBill {
     const file = this.document.querySelector(`input[data-testid="file"]`).files[0]
     const filePath = e.target.value.split(/\\/g)
     const fileName = filePath[filePath.length-1]
-    this.firestore
+
+    const extensionCheck = /(png|jpg|jpeg)/g;
+    const extension = fileName.split(".").pop();
+    const matchExtension = extension.toLowerCase().match(extensionCheck);
+
+    this.handleFirestoreStorage(fileName, file, matchExtension);
+  };
+
+  handleFirestoreStorage = (fileName, file, matchExtension) => {
+    if (this.firestore) {
+      this.firestore
       .storage
       .ref(`justificatifs/${fileName}`)
       .put(file)
       .then(snapshot => snapshot.ref.getDownloadURL())
       .then(url => {
-        this.fileUrl = url
-        this.fileName = fileName
-      })
-  }
+        this.fileUrl = url;
+        this.fileName = matchExtension ? fileName : "invalid";
+      });
+    };
+  };
+
   handleSubmit = e => {
     e.preventDefault()
+    if (this.fileName === "invalid") return;
     console.log('e.target.querySelector(`input[data-testid="datepicker"]`).value', e.target.querySelector(`input[data-testid="datepicker"]`).value)
     const email = JSON.parse(localStorage.getItem("user")).email
     const bill = {
